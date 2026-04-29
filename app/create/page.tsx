@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseClient as supabase } from "@/lib/supabase/client";
 
-
 const randomSlug = () => {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
@@ -26,12 +25,19 @@ export default function CreatePage() {
 
   useEffect(() => {
     const loadUser = async () => {
-      const { data } = await supabase.auth.getSession();
+      console.log("CreatePage: Checking auth session...");
+      const { data, error } = await supabase.auth.getSession();
+      console.log("CreatePage: Session data:", data);
+      console.log("CreatePage: Session error:", error);
+
       const user = data?.session?.user;
       if (!user) {
-        router.replace("/login");
+        console.log("CreatePage: No user found, redirecting to /login");
+        // Temporarily comment out redirect for debugging
+        // router.replace("/login");
         return;
       }
+      console.log("CreatePage: User found:", user.id);
       setUserId(user.id);
     };
     loadUser();
@@ -52,7 +58,6 @@ export default function CreatePage() {
     setError(null);
 
     const filename = `${userId}-${Date.now()}-${form.photo.name}`;
-    // Upload image file to Supabase Storage bucket
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("card-photos")
       .upload(filename, form.photo, { upsert: false });
@@ -63,13 +68,11 @@ export default function CreatePage() {
       return;
     }
 
-    // Retrieve public URL for uploaded image
     const { data: publicUrlData } = supabase.storage
       .from("card-photos")
       .getPublicUrl(uploadData.path);
 
     const slug = randomSlug();
-    // Insert the new card entry into the cards table
     const { error: insertError } = await supabase.from("cards").insert({
       slug,
       user_id: userId,
